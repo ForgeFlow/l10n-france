@@ -11,8 +11,9 @@ from datetime import datetime
 import pytz
 import requests
 
-from odoo import _, api, models, tools
+from odoo import _, fields, models, tools
 from odoo.exceptions import RedirectWarning, UserError
+from odoo.tools.misc import format_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,9 @@ TIMEOUT = 20
 class L10nFrAccountVatReturn(models.Model):
     _inherit = "l10n.fr.account.vat.return"
 
-    @api.model
-    def _send_gateway_selection(self):
-        sel = super()._send_gateway_selection()
-        sel.append(("teledec", "Teledec.fr"))
-        return sel
+    teledec_sent_datetime = fields.Datetime(
+        string="Teledec.fr Dispatch Date", readonly=True
+    )
 
     def _prepare_json_teledec_headers(self, teledec_dict, title_id2code):
         self.ensure_one()
@@ -168,7 +167,7 @@ class L10nFrAccountVatReturn(models.Model):
             "millesime": self.end_date.year,
             # suspension: write CSS for "cession d'activité"
             "suspension": False,
-            "reference": f"{company.vat}_{self.name}",  # optional field
+            "reference": "%s_%s" % (company.vat, self.name),  # optional field
         }
 
     def _prepare_json_teledec(self):
@@ -269,10 +268,29 @@ class L10nFrAccountVatReturn(models.Model):
             self._prepare_comment(self.reimbursement_comment_dgfip, "FJ", dict_3519)
         return dict_3519
 
-    def _send_via_teledec(self, test_mode=False):
+    def send_ca3_via_teledec(self):
         self.ensure_one()
+        if self.teledec_sent_datetime:
+            raise UserError(
+                _(
+                    "The VAT declaration '%(vat_return)s' has already been sent "
+                    "on %(datetime)s.",
+                    vat_return=self.display_name,
+                    datetime=format_datetime(self.env, self.teledec_sent_datetime),
+                )
+            )
+        assert self.state == "auto"
+        if self.vat_periodicity == "12":
+            raise UserError(
+                _(
+                    "Teletransmission via Teledec.fr is not yet supported for CA12 "
+                    "(yearly VAT returns). At the moment, it only works for CA3 "
+                    "(monthly or quarterly)."
+                )
+            )
+        test_mode = self.company_id.fr_vat_teledec_test_mode
         prefix = test_mode and "https://stage" or "https://www"
-        url = f"{prefix}.teledec.fr/service/declaration-marque-blanche"
+        url = "%s.teledec.fr/service/declaration-marque-blanche" % prefix
         teledec_dict = self._prepare_json_teledec()
         teledec_str = json.dumps(teledec_dict)
         teledec_bytes = teledec_str.encode("utf-8")
@@ -324,7 +342,27 @@ class L10nFrAccountVatReturn(models.Model):
                         error=res_json.get("message", _("None")),
                     )
                 ) from None
-            return (teledec_bytes, "json")
+            self.write({"teledec_sent_datetime": fields.Datetime.now()})
+            filename = "teledec_data-%s.json" % teledec_dict["auth"][
+                "timestamp"
+            ].replace(":", "-")
+            attach = self.env["ir.attachment"].create(
+                {
+                    "name": filename,
+                    "raw": teledec_bytes,
+                }
+            )
+            self.message_post(
+                body=_(
+                    "VAT return successfully sent to "
+                    '<a href="https://teledec.fr/">Teledec.fr</a>. '
+                    "Technical data sent: <a href=# data-oe-model=ir.attachment "
+                    "data-oe-id=%(attach_id)s>%(attach_name)s</a>",
+                    attach_id=attach.id,
+                    attach_name=attach.name,
+                )
+            )
+            self.auto2sent()
         else:
             raise UserError(
                 _("The request sent to Teledec.fr got an HTTP error code %s.")

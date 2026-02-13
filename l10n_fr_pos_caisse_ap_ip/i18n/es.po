@@ -136,9 +136,11 @@ msgstr ""
 #: code:addons/l10n_fr_pos_caisse_ap_ip/models/pos_payment_method.py:0
 #, python-format
 msgid ""
-"Failure in the connection to the payment terminal on %(ip_addr)s port "
-"%(port)s: %(error)s."
+"Failed to connect to the payment terminal on %(ip_addr)s:%(port)s\n"
+"%(error)s"
 msgstr ""
+"Error al conectar con el terminal de pago en %(ip_addr)s:%(port)s\n"
+"%(error)s"
 
 #. module: l10n_fr_pos_caisse_ap_ip
 #: model:ir.model.fields,help:l10n_fr_pos_caisse_ap_ip.field_pos_payment_method__fr_caisse_ap_ip_address
@@ -239,11 +241,3 @@ msgstr ""
 #, python-format
 msgid "unknown"
 msgstr "desconocido"
-
-#, python-format
-#~ msgid ""
-#~ "Failed to connect to the payment terminal on %(ip_addr)s:%(port)s\n"
-#~ "%(error)s"
-#~ msgstr ""
-#~ "Error al conectar con el terminal de pago en %(ip_addr)s:%(port)s\n"
-#~ "%(error)s"

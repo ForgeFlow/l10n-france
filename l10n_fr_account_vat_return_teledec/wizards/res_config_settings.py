@@ -17,3 +17,6 @@ class ResConfigSettings(models.TransientModel):
     fr_vat_teledec_email = fields.Char(
         related="company_id.fr_vat_teledec_email", readonly=False
     )
+    fr_vat_teledec_test_mode = fields.Boolean(
+        related="company_id.fr_vat_teledec_test_mode", readonly=False
+    )

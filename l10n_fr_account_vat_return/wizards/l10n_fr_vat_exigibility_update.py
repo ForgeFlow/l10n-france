@@ -54,7 +54,7 @@ class L10nFrVatExigibilityUpdate(models.TransientModel):
         self.company_id.write({"fr_vat_exigibility": self.new_fr_vat_exigibility})
         domain = [
             ("company_id", "=", self.company_id.id),
-            ("move_type", "in", ("out_invoice", "out_refund", "out_receipt")),
+            ("move_type", "in", ("out_invoice", "out_refund")),
         ]
         if self.update_type == "date":
             today = fields.Date.context_today(self)

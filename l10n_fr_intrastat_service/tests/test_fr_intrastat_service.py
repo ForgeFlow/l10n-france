@@ -34,9 +34,7 @@ class TestFrIntrastatService(TransactionCase):
                 "vat": "FR86792377731",
             }
         )
-        cls.env.ref("l10n_fr.l10n_fr_pcg_chart_template").try_loading(
-            company=cls.company
-        )
+        cls.env.company.chart_template_id.try_loading(company=cls.company)
         cls.env.user.write({"company_ids": [(4, cls.company.id)]})
         cls.env.user.write({"company_id": cls.company.id})
         cls.fp_eu_b2b = cls.env["account.fiscal.position"].create(
@@ -80,7 +78,7 @@ class TestFrIntrastatService(TransactionCase):
                 {
                     "code": "706000",
                     "name": "Service Sales - (test)",
-                    "account_type": "income",
+                    "user_type_id": cls.ref("account.data_account_type_revenue"),
                     "company_id": cls.company.id,
                 }
             )
